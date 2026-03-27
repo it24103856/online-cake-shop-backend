@@ -18,7 +18,10 @@ const deliverySchema = new mongoose.Schema({
         default: 'Pending'
     },
     estimatedDeliveryTime: { type: String }, // e.g., "2026-03-27 4:00 PM"
-    actualDeliveryTime: { type: Date }
+    actualDeliveryTime: { type: Date },
+
+    image: { type: String }, // URL to the delivery image  
+    
 }, { timestamps: true });
 
 export default mongoose.model("Delivery", deliverySchema);
