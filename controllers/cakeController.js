@@ -14,10 +14,10 @@ export const createCake = async (req, res) => {
 // Get All Cakes
 export const getAllCakes = async (req, res) => {
     try {
-        const cakes = await Cake.find().sort({ createdAt: -1 }); // අලුත්ම ඒවා මුලට
+        const cakes = await Cake.find().sort({ createdAt: -1 }); // Newest items first
         res.status(200).json({ 
             success: true, 
-            data: cakes // Frontend එක බලන දත්ත මේ "data" ඇතුළත තිබිය යුතුයි
+            data: cakes // Frontend expects the list inside "data"
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

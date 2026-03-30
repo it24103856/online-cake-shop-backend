@@ -79,7 +79,7 @@ export const deletePayment = async (req, res) => {
 
 export const getMyPayments = async (req, res) => {
     try {
-        // මෙහි req.user.id ලැබෙන්නේ ඔබේ protect middleware එක හරහායි
+        // req.user.id is provided via the protect middleware
         const payments = await Payment.find({ userID: req.user.id }).sort({ createdAt: -1 });
         res.status(200).json({ success: true, data: payments });
     } catch (error) {

@@ -18,7 +18,7 @@ export const createAccessory = async (req, res) => {
 // 2. Get All Accessories
 export const getAllAccessories = async (req, res) => {
     try {
-        // අලුතින්ම එකතු කරන අයිතම මුලින්ම පෙන්වීමට sort භාවිතා කළා
+        // Sort to show the most recently added items first
         const items = await Accessories.find().sort({ createdAt: -1 });
         res.status(200).json({ 
             success: true, 

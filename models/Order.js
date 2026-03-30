@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema({
-    // MongoDB auto-generated _id එක පාවිච්චි කරන නිසා orderID අවශ්‍ය නැත.
+    // orderID is unnecessary since MongoDB provides an auto-generated _id
     customer: {
         name: { type: String, required: true },
         email: { type: String, required: true },
@@ -12,19 +12,19 @@ const orderSchema = new mongoose.Schema({
         {            productID: { 
                 type: mongoose.Schema.Types.ObjectId, 
                 required: true,
-                refPath: 'items.itemType' // Cake හෝ Accessories model එකට link වේ
+                refPath: 'items.itemType' // Links to Cake or Accessories model
             },
             itemType: {
                 type: String,
                 required: true,
-                enum: ['Cake', 'Accessories'] // කුමන වර්ගයේ භාණ්ඩයක්ද යන්න
+                enum: ['Cake', 'Accessories'] // Indicates the product category
             },
             name: { type: String, required: true },
             price: { type: Number, required: true },
             quantity: { type: Number, required: true },
             image: { type: String, required: true },
-            flavor: { type: String }, // Cake සඳහා පමණක් අවශ්‍ය නම්
-            weight: { type: String }, // Cake සඳහා පමණක් අවශ්‍ය නම්
+            flavor: { type: String }, // Optional, mainly used for cakes
+            weight: { type: String }, // Optional, mainly used for cakes
         }
     ],
     totalPrice: { type: Number, required: true },

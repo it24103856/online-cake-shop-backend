@@ -4,10 +4,10 @@ import User from "../models/User.js";
 export const protect = async (req, res, next) => {
     let token;
     
-    // Authorization Header එක තිබේදැයි සහ එය "Bearer " වලින් පටන් ගන්නේදැයි බලයි
+    // Check whether Authorization header exists and starts with "Bearer "
     if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
         try {
-            token = req.headers.authorization.split(" ")[1]; // Token එක වෙන් කර ගැනීම
+            token = req.headers.authorization.split(" ")[1]; // Extract token value
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             
             req.user = await User.findById(decoded.id).select("-password");

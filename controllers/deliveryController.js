@@ -10,7 +10,7 @@ export const assignDelivery = async (req, res) => {
         if (existingDelivery) {
             return res.status(400).json({ 
                 success: false, 
-                message: "මෙම ඇණවුමට දැනටමත් රියදුරෙකු පත් කර ඇත." 
+                message: "A driver has already been assigned to this order." 
             });
         }
 
@@ -31,15 +31,15 @@ export const assignDelivery = async (req, res) => {
 };
 
 // 2. Update Delivery Status (Admin/General Update)
-// මෙහි imageUrl එකත් update කළ හැකි ලෙස වෙනස් කරන ලදී
+// Updated to allow imageUrl updates as well
 export const updateDeliveryStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, imageUrl } = req.body; // Frontend එකෙන්imageUrl එකත් එවන්නේ නම් එය ලබා ගනී
+        const { status, imageUrl } = req.body; // Reads imageUrl too if frontend sends it
 
         const updateData = { deliveryStatus: status };
         
-        // පින්තූරයක් ඇත්නම් එයද updateData වලට එකතු කරයි
+        // Add image to update payload if provided
         if (imageUrl) {
             updateData.image = imageUrl;
         }
@@ -83,12 +83,12 @@ export const deleteDelivery = async (req, res) => {
 export const updateDeliveryByDriver = async (req, res) => {
     try {
         const { id } = req.params;
-        const { imageUrl } = req.body; // Status එක එවන්නේ නැත, රූපය පමණි
+        const { imageUrl } = req.body; // Only image is sent, not status
 
         const updateData = { 
             image: imageUrl,
-            // මෙතනදී status එක 'Delivered' කරන්නේ නැහැ. 
-            // අවශ්‍ය නම් 'Proof Uploaded' වැනි තාවකාලික status එකක් දාන්නත් පුළුවන්.
+            // Status is not set to 'Delivered' at this stage.
+            // If needed, a temporary status like 'Proof Uploaded' can be used.
         };
 
         const updated = await Delivery.findByIdAndUpdate(
@@ -97,7 +97,7 @@ export const updateDeliveryByDriver = async (req, res) => {
             { new: true }
         );
 
-        res.status(200).json({ success: true, message: "ඡායාරූපය සාර්ථකව ලැබුණි. Admin තහවුරු කරන තෙක් රැඳී සිටින්න.", data: updated });
+        res.status(200).json({ success: true, message: "Photo uploaded successfully. Please wait for admin confirmation.", data: updated });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -107,7 +107,7 @@ export const getSingleDelivery = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // ID එක valid MongoDB ID එකක්දැයි බලන්න
+        // Check whether the ID is a valid MongoDB ObjectId
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ success: false, message: "Invalid Delivery ID" });
         }
@@ -127,38 +127,39 @@ export const getSingleDelivery = async (req, res) => {
 // 7. Get Driver Tasks
 export const getDriverTasks = async (req, res) => {
     try {
-        const driverPhone = req.user.phone; 
-        const tasks = await Delivery.find({ 
-            "deliveryPerson.phone": driverPhone,
-            deliveryStatus: { $ne: "Delivered" } 
-        }).populate('orderID');
+        // සියලුම deliveries ලබා ගන්න (Filter නොකර)
+        const tasks = await Delivery.find().populate('orderID').sort({ createdAt: -1 });
 
-        res.status(200).json({ success: true, data: tasks });
+        res.status(200).json({ 
+            success: true, 
+            data: tasks,
+            driverPhone: req.user.phone // Frontend එකේදී check කරගන්න ඩ්‍රයිවර්ගේ phone එකත් යවනවා
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
-};
+};  
 
 export const getUserDeliveries = async (req, res) => {
     try {
-        // 1. ලොග් වී සිටින පරිශීලකයාගේ Email එක ලබා ගැනීම (Token එකෙන්)
+        // 1. Get the logged-in user's email (from token)
         const currentUserEmail = req.user.email; 
 
-        // 2. Database එකේ ඇති සියලුම Deliveries ලබා ගැනීම
+        // 2. Fetch all deliveries from the database
         const allDeliveries = await Delivery.find()
             .populate({
                 path: 'orderID',
-                // පාරිභෝගිකයාගේ email එක ඇතුළු විස්තර ලබා ගැනීම
+                // Include details including customer email
                 select: 'customer items totalPrice status createdAt' 
             })
             .populate('deliveryPerson', 'name phone')
             .sort({ createdAt: -1 })
             .lean();
 
-        // 3. සියලුම දත්ත සහ වත්මන් පරිශීලකයාගේ Email එක Response එක ලෙස යැවීම
+        // 3. Return all deliveries with current user's email in the response
         res.status(200).json({
             success: true,
-            currentUserEmail: currentUserEmail, // Frontend එකේදී Compare කිරීමට මෙය අවශ්‍ය වේ
+            currentUserEmail: currentUserEmail, // Needed for comparison on frontend
             data: allDeliveries
         });
 
@@ -166,7 +167,7 @@ export const getUserDeliveries = async (req, res) => {
         console.error("Fetch Deliveries Error:", error);
         res.status(500).json({ 
             success: false, 
-            message: "දත්ත ලබා ගැනීමේදී දෝෂයක් සිදුවිය." 
+            message: "An error occurred while fetching data." 
         });
     }
 };
