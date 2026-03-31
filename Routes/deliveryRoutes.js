@@ -22,6 +22,6 @@ router.delete("/:id", protect, isAdmin, deleteDelivery);        // Delete delive
 router.put("/driver-update/:id", protect, updateDeliveryByDriver);
 router.get("/track/:id", protect, getSingleDelivery);
 router.get("/my-tasks", protect, getDriverTasks);
-router.get("/my-orders", getUserDeliveries);
-
+// මෙය වෙනස් කරන්න
+router.get("/my-orders", protect, getUserDeliveries);
 export default router;

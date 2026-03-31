@@ -279,3 +279,13 @@ export const updateUser = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
+export async function getAllDrivers(req, res) {
+    try {
+        // Role එක "Driver" වන අය පමණක් සොයන්න
+        const drivers = await User.find({ role: "Driver" }, "firstName lastName phone");
+        res.json(drivers);
+    } catch (error) {
+        res.status(500).json({ message: "Failed to fetch drivers", error: error.message });
+    }
+}

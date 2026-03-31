@@ -1,10 +1,16 @@
 import Delivery from "../models/Delivery.js";
 import Order from "../models/Order.js";
-
+import mongoose from "mongoose"; // මෙය අනිවාර්යයෙන්ම අවශ්‍යයි
+// 1. Assign Delivery
 // 1. Assign Delivery
 export const assignDelivery = async (req, res) => {
     try {
         const { orderID, deliveryPerson, vehicleNumber, estimatedDeliveryTime } = req.body;
+
+        // Validation: Request එකේ දත්ත තියෙනවාදැයි බලන්න
+        if (!orderID || !deliveryPerson?.name) {
+            return res.status(400).json({ success: false, message: "Required fields are missing" });
+        }
 
         const existingDelivery = await Delivery.findOne({ orderID });
         if (existingDelivery) {
@@ -22,10 +28,13 @@ export const assignDelivery = async (req, res) => {
         });
 
         const savedDelivery = await newDelivery.save();
+        
+        // Order එකේ status එක update කිරීම
         await Order.findByIdAndUpdate(orderID, { status: 'shipped' });
 
         res.status(201).json({ success: true, message: "Delivery assigned successfully", data: savedDelivery });
     } catch (error) {
+        console.error("Assign Delivery Error:", error); // Terminal එකේ විස්තර බැලීමට
         res.status(500).json({ success: false, message: error.message });
     }
 };
