@@ -20,7 +20,14 @@ export const assignDelivery = async (req, res) => {
             });
         }
 
+        // Get the order to retrieve userId
+        const order = await Order.findById(orderID);
+        if (!order) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
         const newDelivery = new Delivery({
+            userId: order.userId,  // Automatically add userId from the order
             orderID,
             deliveryPerson,
             vehicleNumber,
@@ -53,12 +60,23 @@ export const updateDeliveryStatus = async (req, res) => {
             updateData.image = imageUrl;
         }
 
+        // Get the delivery first to check if userId is set
+        const delivery = await Delivery.findById(id);
+        if (!delivery) {
+            return res.status(404).json({ success: false, message: "Delivery not found" });
+        }
+
+        // If userId is not set, get it from the order
+        if (!delivery.userId && delivery.orderID) {
+            const order = await Order.findById(delivery.orderID);
+            if (order && order.userId) {
+                updateData.userId = order.userId;
+            }
+        }
+
         if (status === 'Delivered') {
             updateData.actualDeliveryTime = new Date();
-            const delivery = await Delivery.findById(id);
-            if (delivery) {
-                await Order.findByIdAndUpdate(delivery.orderID, { status: 'delivered' });
-            }
+            await Order.findByIdAndUpdate(delivery.orderID, { status: 'delivered' });
         }
 
         const updated = await Delivery.findByIdAndUpdate(id, { $set: updateData }, { new: true });
@@ -151,25 +169,33 @@ export const getDriverTasks = async (req, res) => {
 
 export const getUserDeliveries = async (req, res) => {
     try {
-        // 1. Get the logged-in user's email (from token)
-        const currentUserEmail = req.user.email; 
+        const userId = req.user.id;
 
-        // 2. Fetch all deliveries from the database
-        const allDeliveries = await Delivery.find()
+        // First, try to fetch deliveries by userId (new way)
+        let userDeliveries = await Delivery.find({ userId })
             .populate({
                 path: 'orderID',
-                // Include details including customer email
                 select: 'customer items totalPrice status createdAt' 
             })
             .populate('deliveryPerson', 'name phone')
-            .sort({ createdAt: -1 })
-            .lean();
+            .sort({ createdAt: -1 });
 
-        // 3. Return all deliveries with current user's email in the response
+        // If no deliveries found by userId, find user's orders and fetch their deliveries (fallback for legacy deliveries)
+        if (userDeliveries.length === 0) {
+            const userOrders = await Order.find({ userId }, '_id');
+            const orderIds = userOrders.map(o => o._id);
+            userDeliveries = await Delivery.find({ orderID: { $in: orderIds } })
+                .populate({
+                    path: 'orderID',
+                    select: 'customer items totalPrice status createdAt' 
+                })
+                .populate('deliveryPerson', 'name phone')
+                .sort({ createdAt: -1 });
+        }
+
         res.status(200).json({
             success: true,
-            currentUserEmail: currentUserEmail, // Needed for comparison on frontend
-            data: allDeliveries
+            data: userDeliveries
         });
 
     } catch (error) {

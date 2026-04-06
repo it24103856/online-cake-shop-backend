@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 
 const deliverySchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
     orderID: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Order',

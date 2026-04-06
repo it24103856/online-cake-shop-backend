@@ -3,6 +3,7 @@ import {
     createOrder, 
     getAllOrders, 
     getUserOrders, 
+    getMyOrders,
     updateOrderStatus, 
     deleteOrder 
 } from "../Controllers/orderController.js";
@@ -10,9 +11,10 @@ import { isAdmin,protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", protect, isAdmin, createOrder);
+router.post("/", protect, createOrder);
 router.get("/", protect, isAdmin, getAllOrders);
-router.get("/user/:email", protect, isAdmin, getUserOrders);
+router.get("/my-orders", protect, getMyOrders);
+router.get("/user/:email", protect, getUserOrders);
 router.put("/:id", protect, isAdmin, updateOrderStatus);
 router.delete("/:id", protect, isAdmin, deleteOrder);
 

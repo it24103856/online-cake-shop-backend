@@ -103,3 +103,32 @@ export const deleteReview = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+export const markHelpful = async (req, res) => {
+    try {
+        const { reviewId } = req.params;
+        const userId = req.user.id;
+
+        const review = await Review.findById(reviewId);
+        if (!review) {
+            return res.status(404).json({ success: false, message: "Review not found." });
+        }
+
+        // Check if user already marked as helpful
+        const alreadyHelpful = review.helpfulBy.includes(userId);
+        if (alreadyHelpful) {
+            // Remove from helpful
+            review.helpfulBy = review.helpfulBy.filter(id => id.toString() !== userId);
+            review.helpfulVotes = Math.max(0, review.helpfulVotes - 1);
+        } else {
+            // Add to helpful
+            review.helpfulBy.push(userId);
+            review.helpfulVotes += 1;
+        }
+
+        await review.save();
+        res.status(200).json({ success: true, data: review, message: alreadyHelpful ? "Removed from helpful" : "Marked as helpful" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

@@ -7,6 +7,7 @@ export const processPayment = async (req, res) => {
         const { orderID, paymentMethod, amount, receiptImage, referenceNumber } = req.body;
 
         const newPayment = new Payment({
+            userId: req.user.id,  // Automatically add userId from authenticated user
             orderID,
             paymentMethod,
             amount,
@@ -80,7 +81,19 @@ export const deletePayment = async (req, res) => {
 export const getMyPayments = async (req, res) => {
     try {
         // req.user.id is provided via the protect middleware
-        const payments = await Payment.find({ userID: req.user.id }).sort({ createdAt: -1 });
+        let payments = await Payment.find({ userId: req.user.id })
+            .populate('orderID')
+            .sort({ createdAt: -1 });
+
+        // If no payments found by userId, try to find by orders belonging to user (fallback for legacy payments)
+        if (payments.length === 0) {
+            const userOrders = await Order.find({ userId: req.user.id }, '_id');
+            const orderIds = userOrders.map(o => o._id);
+            payments = await Payment.find({ orderID: { $in: orderIds } })
+                .populate('orderID')
+                .sort({ createdAt: -1 });
+        }
+
         res.status(200).json({ success: true, data: payments });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

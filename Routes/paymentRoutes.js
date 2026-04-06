@@ -12,11 +12,11 @@ const router = express.Router();
 
 // User routes
 router.post("/submit", protect, processPayment);
+router.get("/my-payments", protect, getMyPayments);
 
 // Admin routes
 router.get("/", protect, isAdmin, getAllPayments);          // Get all payments for the list
 router.put("/verify", protect, isAdmin, adminVerifyPayment); // Approve or Reject
 router.delete("/:id", protect, isAdmin, deletePayment);     // Delete a specific record
-router.get("/my-payments", protect, getMyPayments);
 
 export default router;
