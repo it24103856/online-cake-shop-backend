@@ -1,4 +1,6 @@
 import Order from "../models/Order.js";
+import Cake from "../models/Cake.js";
+import Accessories from "../models/Accessories.js";
 
 export const createOrder = async (req, res) => {
     try {
@@ -7,6 +9,18 @@ export const createOrder = async (req, res) => {
             userId: req.user.id  // Automatically add userId from authenticated user
         });
         const savedOrder = await newOrder.save();
+        
+        // Decrement product stock dynamically
+        if (savedOrder.items && savedOrder.items.length > 0) {
+            for (const item of savedOrder.items) {
+                if (item.itemType === 'Cake') {
+                    await Cake.findByIdAndUpdate(item.productID, { $inc: { quantity: -item.quantity } });
+                } else if (item.itemType === 'Accessories') {
+                    await Accessories.findByIdAndUpdate(item.productID, { $inc: { quantity: -item.quantity } });
+                }
+            }
+        }
+        
         res.status(201).json({ success: true, message: "Order created successfully", data: savedOrder });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
