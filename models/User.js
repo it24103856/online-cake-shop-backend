@@ -41,14 +41,16 @@ const userSchema = new mongoose.Schema(
                 type: String,
                 default: false,
             },
-            phone: {
-                type: String,
-                default: "",
-                validator:function(v){
-                    return v==="" || /^\d{10}$/.test(v);
-                },
-                message: props => `${props.value} is not a valid phone number!`
-            },
+           phone: {
+             type: String,
+             default: "",
+              validate: { 
+             validator: function(v) {
+            return v === "" || /^\d{10}$/.test(v);
+        },
+        message: props => `${props.value} is not a valid phone number! (Must be 10 digits)`
+    }
+}
         }
     );
     

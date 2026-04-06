@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema({
     // orderID is unnecessary since MongoDB provides an auto-generated _id
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    },
     customer: {
         name: { type: String, required: true },
         email: { type: String, required: true },

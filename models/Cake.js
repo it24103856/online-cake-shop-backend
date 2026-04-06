@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+ import mongoose from "mongoose";
 
 const CakeSchema=new mongoose.Schema({
  name:{
@@ -43,9 +43,12 @@ const CakeSchema=new mongoose.Schema({
         type: Number,
         required: false,
         default: 0,
+        min: 0,
+        max: 5
     },
     reviews:{
-        type: [String],
+        type: [mongoose.Schema.Types.ObjectId],
+        ref: "Review",
         required: false,
         default: []
 
