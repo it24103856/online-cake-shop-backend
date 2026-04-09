@@ -1,6 +1,26 @@
 import Order from "../models/Order.js";
 import Cake from "../models/Cake.js";
 import Accessories from "../models/Accessories.js";
+import User from "../models/User.js";
+
+const updateLoyaltyStatus = async (userId) => {
+    try {
+        const orders = await Order.find({ userId, status: 'delivered' });
+        const totalOrders = orders.length;
+        const totalSpent = orders.reduce((sum, order) => sum + order.totalPrice, 0);
+
+        // Define loyalty criteria: 5+ orders OR 5000+ total spending
+        const isLoyal = totalOrders >= 5 || totalSpent >= 5000;
+
+        await User.findByIdAndUpdate(userId, {
+            totalOrders,
+            totalSpent,
+            isLoyal
+        });
+    } catch (error) {
+        console.error("Error updating loyalty status:", error);
+    }
+};
 
 export const createOrder = async (req, res) => {
     try {
@@ -72,6 +92,10 @@ export const updateOrderStatus = async (req, res) => {
 
         if (!updatedOrder) {
             return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        if (updatedOrder.status === 'delivered') {
+            await updateLoyaltyStatus(updatedOrder.userId);
         }
 
         res.status(200).json({ success: true, message: "Order updated successfully", data: updatedOrder });

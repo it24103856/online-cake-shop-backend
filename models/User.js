@@ -41,16 +41,30 @@ const userSchema = new mongoose.Schema(
                 type: String,
                 default: false,
             },
-           phone: {
-             type: String,
-             default: "",
-              validate: { 
-             validator: function(v) {
-            return v === "" || /^\d{10}$/.test(v);
-        },
-        message: props => `${props.value} is not a valid phone number! (Must be 10 digits)`
-    }
-}
+            phone: {
+                type: String,
+                default: "",
+                unique: true,
+                sparse: true,
+                validate: { 
+                    validator: function(v) {
+                        return v === "" || /^\d{10}$/.test(v);
+                    },
+                    message: props => `${props.value} is not a valid phone number! (Must be 10 digits)`
+                }
+            },
+            totalOrders: {
+                type: Number,
+                default: 0
+            },
+            totalSpent: {
+                type: Number,
+                default: 0
+            },
+            isLoyal: {
+                type: Boolean,
+                default: false
+            }
         }
     );
     

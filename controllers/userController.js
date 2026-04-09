@@ -171,16 +171,54 @@ export async function getuser(req, res) {
     }
 }
 
-export async function getAllUsers(req,res){
-    try{
-        const users = await User.find();
+export async function getAllUsers(req, res) {
+    try {
+        const { search, role, status } = req.query;
+        let query = {};
+
+        // 1. Search Logic: Filter by email, firstName, or lastName
+        if (search) {
+            query.$or = [
+                { email: { $regex: search, $options: "i" } },
+                { firstName: { $regex: search, $options: "i" } },
+                { lastName: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        // 2. Filter Logic: Role (admin, user, Driver)
+        if (role && role !== "all") {
+            query.role = role;
+        }
+
+        // 3. Status Logic: isblocked (active/blocked)
+        if (status && status !== "all") {
+            query.isblocked = status === "blocked";
+        }
+
+        const users = await User.find(query);
         res.json(users);
-    } catch(error){
-        res.status(500).json({message:"Failed to fetch users",error:error.message})
+    } catch (error) {
+        res.status(500).json({ message: "Failed to fetch users", error: error.message });
     }
 }
 
-export async function deleteUser(req,res){
+export async function getAdminStats(req, res) {
+    try {
+        const totalUsers = await User.countDocuments();
+        const activeUsers = await User.countDocuments({ isblocked: false });
+        const loyalCustomers = await User.countDocuments({ isLoyal: true });
+
+        res.json({
+            totalUsers,
+            activeUsers,
+            loyalCustomers
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to fetch admin stats", error: error.message });
+    }
+}
+
+export async function deleteUser(req, res) {
     const email = req.params.email;
     try{
         const result = await User.deleteOne({email:email});
