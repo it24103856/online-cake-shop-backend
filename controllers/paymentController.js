@@ -42,8 +42,10 @@ export const adminVerifyPayment = async (req, res) => {
             { new: true }
         );
 
-        if (status === 'Completed') {
+        if (status === 'Completed' || status === 'Verified') {
             await Order.findByIdAndUpdate(updatedPayment.orderID, { paymentStatus: "Paid" });
+        } else if (status === 'Failed' || status === 'Rejected') {
+            await Order.findByIdAndUpdate(updatedPayment.orderID, { paymentStatus: "Pending" });
         }
 
         res.status(200).json({ success: true, message: `Payment marked as ${status}` });
