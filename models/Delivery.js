@@ -11,11 +11,17 @@ const deliverySchema = new mongoose.Schema({
         required: true,
         unique: true
     },
-    deliveryPerson: {
-        name: { type: String, required: true },
-        phone: { type: String, required: true }
+    driverId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Driver',
+        required: true,
     },
-    vehicleNumber: { type: String, required: true },
+    // Legacy fields - kept for backward compatibility
+    deliveryPerson: {
+        name: { type: String, default: "" },
+        phone: { type: String, default: "" }
+    },
+    vehicleNumber: { type: String, default: "" },
     deliveryStatus: {
         type: String,
         enum: ['Pending', 'Out for Delivery', 'Delivered', 'Cancelled'],

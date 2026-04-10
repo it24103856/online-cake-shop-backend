@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Driver from "../models/Driver.js";
 
 export const protect = async (req, res, next) => {
     let token;
@@ -10,9 +11,26 @@ export const protect = async (req, res, next) => {
             token = req.headers.authorization.split(" ")[1]; // Extract token value
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             
-            req.user = await User.findById(decoded.id).select("-password");
+            console.log("Decoded token:", decoded);
+            
+            // Check if this is a driver or user login
+            if (decoded.role === "driver") {
+                // It's a driver login
+                req.user = await Driver.findById(decoded.id).select("-password");
+                console.log("Driver found:", req.user);
+            } else {
+                // It's a user login
+                req.user = await User.findById(decoded.id).select("-password");
+                console.log("User found:", req.user);
+            }
+            
+            if (!req.user) {
+                return res.status(401).json({ success: false, message: "User/Driver not found" });
+            }
+            
             next();
         } catch (error) {
+            console.error("Token verification error:", error.message);
             return res.status(401).json({ success: false, message: "Not authorized, token failed" });
         }
     }
