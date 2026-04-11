@@ -26,49 +26,40 @@ const updateLoyaltyStatus = async (userId) => {
 
 export const createOrder = async (req, res) => {
     try {
-        const session = await Order.startSession();
-        let savedOrder = null;
+        const items = Array.isArray(req.body.items) ? req.body.items : [];
 
-        try {
-            await session.withTransaction(async () => {
-                const items = Array.isArray(req.body.items) ? req.body.items : [];
-
-                if (items.length === 0) {
-                    throw new Error("Cart is empty.");
-                }
-
-                for (const item of items) {
-                    const requestedQuantity = Number(item.quantity);
-
-                    if (!Number.isFinite(requestedQuantity) || requestedQuantity <= 0) {
-                        throw new Error("Invalid item quantity.");
-                    }
-
-                    const productModel = item.itemType === 'Accessories' ? Accessories : Cake;
-                    const reservedProduct = await productModel.findOneAndUpdate(
-                        {
-                            _id: item.productID,
-                            quantity: { $gte: requestedQuantity }
-                        },
-                        { $inc: { quantity: -requestedQuantity } },
-                        { new: true, session }
-                    );
-
-                    if (!reservedProduct) {
-                        throw new Error(`Insufficient stock available for ${item.name}.`);
-                    }
-                }
-
-                const newOrder = new Order({
-                    ...req.body,
-                    userId: req.user.id
-                });
-
-                savedOrder = await newOrder.save({ session });
-            });
-        } finally {
-            await session.endSession();
+        if (items.length === 0) {
+            throw new Error("Cart is empty.");
         }
+
+        for (const item of items) {
+            const requestedQuantity = Number(item.quantity);
+
+            if (!Number.isFinite(requestedQuantity) || requestedQuantity <= 0) {
+                throw new Error("Invalid item quantity.");
+            }
+
+            const productModel = item.itemType === 'Accessories' ? Accessories : Cake;
+            const reservedProduct = await productModel.findOneAndUpdate(
+                {
+                    _id: item.productID,
+                    quantity: { $gte: requestedQuantity }
+                },
+                { $inc: { quantity: -requestedQuantity } },
+                { new: true }
+            );
+
+            if (!reservedProduct) {
+                throw new Error(`Insufficient stock available for ${item.name}.`);
+            }
+        }
+
+        const newOrder = new Order({
+            ...req.body,
+            userId: req.user.id
+        });
+
+        const savedOrder = await newOrder.save();
 
         res.status(201).json({ success: true, message: "Order created successfully", data: savedOrder });
     } catch (error) {
