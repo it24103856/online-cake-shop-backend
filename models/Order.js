@@ -47,6 +47,14 @@ const orderSchema = new mongoose.Schema({
         type: String,
         default: "Unpaid"
     },
+    isReceivedByCustomer: {
+        type: Boolean,
+        default: false
+    },
+    receivedAt: {
+        type: Date,
+        default: null
+    },
     notes: { type: String, default: "" }
 }, { timestamps: true });
 

@@ -11,6 +11,14 @@ export const assignDelivery = async (req, res) => {
             return res.status(400).json({ success: false, message: "Order ID and Driver ID are required" });
         }
 
+        if (estimatedDeliveryTime) {
+            const selectedDate = new Date(estimatedDeliveryTime);
+            const now = new Date();
+            if (Number.isNaN(selectedDate.getTime()) || selectedDate < now) {
+                return res.status(400).json({ success: false, message: "Estimated delivery date/time cannot be in the past." });
+            }
+        }
+
         const existingDelivery = await Delivery.findOne({ orderID });
         if (existingDelivery) {
             return res.status(400).json({ 
@@ -23,6 +31,17 @@ export const assignDelivery = async (req, res) => {
         const order = await Order.findById(orderID);
         if (!order) {
             return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        if (order.status === "cancelled") {
+            return res.status(400).json({ success: false, message: "Cancelled orders cannot be assigned for delivery." });
+        }
+
+        if (order.paymentStatus !== "Paid" || order.status !== "shipped") {
+            return res.status(400).json({
+                success: false,
+                message: "Only paid orders in shipped status can be assigned to delivery."
+            });
         }
 
         // Get driver details
@@ -64,6 +83,11 @@ export const updateDeliveryStatus = async (req, res) => {
         const { id } = req.params;
         const { status, imageUrl } = req.body; // Reads imageUrl too if frontend sends it
 
+        const allowedStatuses = ['Pending', 'Delivered'];
+        if (!allowedStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: "Status must be Pending or Delivered." });
+        }
+
         const updateData = { deliveryStatus: status };
         
         // Add image to update payload if provided
@@ -75,6 +99,10 @@ export const updateDeliveryStatus = async (req, res) => {
         const delivery = await Delivery.findById(id);
         if (!delivery) {
             return res.status(404).json({ success: false, message: "Delivery not found" });
+        }
+
+        if (delivery.deliveryStatus === 'Delivered' && status !== 'Delivered') {
+            return res.status(400).json({ success: false, message: "Delivered status is locked and cannot be changed." });
         }
 
         // If userId is not set, get it from the order
@@ -101,7 +129,8 @@ export const updateDeliveryStatus = async (req, res) => {
 export const getAllDeliveries = async (req, res) => {
     try {
         const deliveries = await Delivery.find().populate('orderID');
-        res.status(200).json({ success: true, data: deliveries });
+        const activeDeliveries = deliveries.filter(delivery => delivery.orderID?.status !== 'cancelled');
+        res.status(200).json({ success: true, data: activeDeliveries });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -186,7 +215,7 @@ export const getUserDeliveries = async (req, res) => {
         let userDeliveries = await Delivery.find({ userId })
             .populate({
                 path: 'orderID',
-                select: 'customer items totalPrice status createdAt' 
+                select: 'customer items totalPrice status createdAt isReceivedByCustomer receivedAt' 
             })
             .populate('deliveryPerson', 'name phone')
             .sort({ createdAt: -1 });
@@ -198,11 +227,13 @@ export const getUserDeliveries = async (req, res) => {
             userDeliveries = await Delivery.find({ orderID: { $in: orderIds } })
                 .populate({
                     path: 'orderID',
-                    select: 'customer items totalPrice status createdAt' 
+                    select: 'customer items totalPrice status createdAt isReceivedByCustomer receivedAt' 
                 })
                 .populate('deliveryPerson', 'name phone')
                 .sort({ createdAt: -1 });
         }
+
+            userDeliveries = userDeliveries.filter(delivery => delivery.orderID?.status !== 'cancelled');
 
         res.status(200).json({
             success: true,
@@ -215,6 +246,55 @@ export const getUserDeliveries = async (req, res) => {
             success: false, 
             message: "An error occurred while fetching data." 
         });
+    }
+};
+
+export const markOrderAsReceivedByCustomer = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const userId = req.user?.id;
+
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({ success: false, message: "Invalid Order ID" });
+        }
+
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        const isOwner = order.userId?.toString() === userId || order.customer?.email === req.user?.email;
+        if (!isOwner) {
+            return res.status(403).json({ success: false, message: "You are not allowed to confirm this order." });
+        }
+
+        if (order.status !== 'delivered') {
+            return res.status(400).json({ success: false, message: "Order can be confirmed only after delivery." });
+        }
+
+        if (order.isReceivedByCustomer) {
+            return res.status(200).json({
+                success: true,
+                message: "Order already confirmed by customer.",
+                data: order
+            });
+        }
+
+        order.isReceivedByCustomer = true;
+        order.receivedAt = new Date();
+        await order.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Order marked as received.",
+            data: {
+                orderId: order._id,
+                isReceivedByCustomer: order.isReceivedByCustomer,
+                receivedAt: order.receivedAt
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -241,10 +321,12 @@ export const getMyDeliveryTasks = async (req, res) => {
             .populate('orderID')
             .sort({ createdAt: -1 });
 
-        console.log("Found " + driverDeliveries.length + " deliveries");
+        const activeDriverDeliveries = driverDeliveries.filter(delivery => delivery.orderID?.status !== 'cancelled');
+
+        console.log("Found " + activeDriverDeliveries.length + " deliveries");
 
         // If no deliveries yet, return empty array
-        if (!driverDeliveries || driverDeliveries.length === 0) {
+        if (!activeDriverDeliveries || activeDriverDeliveries.length === 0) {
             return res.status(200).json({
                 success: true,
                 data: [],
@@ -253,7 +335,7 @@ export const getMyDeliveryTasks = async (req, res) => {
         }
 
         // Format response with customer details
-        const tasks = driverDeliveries.map(delivery => {
+        const tasks = activeDriverDeliveries.map(delivery => {
             try {
                 return {
                     _id: delivery._id,

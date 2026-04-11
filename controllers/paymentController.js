@@ -42,8 +42,21 @@ export const adminVerifyPayment = async (req, res) => {
             { new: true }
         );
 
+        if (!updatedPayment) {
+            return res.status(404).json({ success: false, message: "Payment record not found" });
+        }
+
         if (status === 'Completed' || status === 'Verified') {
-            await Order.findByIdAndUpdate(updatedPayment.orderID, { paymentStatus: "Paid" });
+            const linkedOrder = await Order.findById(updatedPayment.orderID);
+            if (linkedOrder) {
+                const orderUpdate = { paymentStatus: "Paid" };
+
+                if (linkedOrder.status !== "shipped" && linkedOrder.status !== "cancelled") {
+                    orderUpdate.status = "processing";
+                }
+
+                await Order.findByIdAndUpdate(updatedPayment.orderID, orderUpdate);
+            }
         } else if (status === 'Failed' || status === 'Rejected') {
             await Order.findByIdAndUpdate(updatedPayment.orderID, { paymentStatus: "Pending" });
         }

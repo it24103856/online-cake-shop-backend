@@ -3,6 +3,8 @@ import Cake from "../models/Cake.js";
 import Accessories from "../models/Accessories.js";
 import User from "../models/User.js";
 
+const MANAGED_ORDER_STATUSES = ["pending", "processing", "shipped"];
+
 const updateLoyaltyStatus = async (userId) => {
     try {
         const orders = await Order.find({ userId, status: 'delivered' });
@@ -24,26 +26,59 @@ const updateLoyaltyStatus = async (userId) => {
 
 export const createOrder = async (req, res) => {
     try {
-        const newOrder = new Order({
-            ...req.body,
-            userId: req.user.id  // Automatically add userId from authenticated user
-        });
-        const savedOrder = await newOrder.save();
-        
-        // Decrement product stock dynamically
-        if (savedOrder.items && savedOrder.items.length > 0) {
-            for (const item of savedOrder.items) {
-                if (item.itemType === 'Cake') {
-                    await Cake.findByIdAndUpdate(item.productID, { $inc: { quantity: -item.quantity } });
-                } else if (item.itemType === 'Accessories') {
-                    await Accessories.findByIdAndUpdate(item.productID, { $inc: { quantity: -item.quantity } });
+        const session = await Order.startSession();
+        let savedOrder = null;
+
+        try {
+            await session.withTransaction(async () => {
+                const items = Array.isArray(req.body.items) ? req.body.items : [];
+
+                if (items.length === 0) {
+                    throw new Error("Cart is empty.");
                 }
-            }
+
+                for (const item of items) {
+                    const requestedQuantity = Number(item.quantity);
+
+                    if (!Number.isFinite(requestedQuantity) || requestedQuantity <= 0) {
+                        throw new Error("Invalid item quantity.");
+                    }
+
+                    const productModel = item.itemType === 'Accessories' ? Accessories : Cake;
+                    const reservedProduct = await productModel.findOneAndUpdate(
+                        {
+                            _id: item.productID,
+                            quantity: { $gte: requestedQuantity }
+                        },
+                        { $inc: { quantity: -requestedQuantity } },
+                        { new: true, session }
+                    );
+
+                    if (!reservedProduct) {
+                        throw new Error(`Insufficient stock available for ${item.name}.`);
+                    }
+                }
+
+                const newOrder = new Order({
+                    ...req.body,
+                    userId: req.user.id
+                });
+
+                savedOrder = await newOrder.save({ session });
+            });
+        } finally {
+            await session.endSession();
         }
-        
+
         res.status(201).json({ success: true, message: "Order created successfully", data: savedOrder });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        const message = error.message === "Cart is empty." || error.message === "Invalid item quantity."
+            ? error.message
+            : error.message?.includes("Insufficient stock available")
+                ? "Insufficient stock available."
+                : error.message;
+
+        res.status(400).json({ success: false, message });
     }
 };
 
@@ -84,9 +119,18 @@ export const getMyOrders = async (req, res) => {
 
 export const updateOrderStatus = async (req, res) => {
     try {
+        const { status } = req.body;
+
+        if (!status || !MANAGED_ORDER_STATUSES.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Order status must be pending, processing, or shipped."
+            });
+        }
+
         const updatedOrder = await Order.findByIdAndUpdate(
             req.params.id,
-            { $set: req.body },
+            { $set: { status } },
             { new: true }
         );
 
@@ -99,6 +143,38 @@ export const updateOrderStatus = async (req, res) => {
         }
 
         res.status(200).json({ success: true, message: "Order updated successfully", data: updatedOrder });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const cancelOrder = async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        if (order.status === "shipped" || order.status === "delivered") {
+            return res.status(400).json({
+                success: false,
+                message: "Completed orders cannot be cancelled."
+            });
+        }
+
+        if (order.status === "cancelled") {
+            return res.status(200).json({
+                success: true,
+                message: "Order is already cancelled.",
+                data: order
+            });
+        }
+
+        order.status = "cancelled";
+        await order.save();
+
+        res.status(200).json({ success: true, message: "Order cancelled successfully", data: order });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
