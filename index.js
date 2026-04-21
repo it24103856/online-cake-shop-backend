@@ -15,6 +15,7 @@ import deliveryRoutes from "./Routes/deliveryRoutes.js";
 import feedbackRoutes from "./Routes/feedbackRoutes.js";
 import reviewRoutes from "./Routes/reviewRoutes.js";
 import driverRoutes from "./Routes/driverRoutes.js";
+import reportRoutes from "./Routes/reportRoutes.js";
 
 
 
@@ -64,6 +65,7 @@ app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/drivers", driverRoutes);
+app.use("/api/reports", reportRoutes);
 app.listen(3000,()=>{
     console.log("Server is running on port 3000");
 }

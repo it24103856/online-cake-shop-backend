@@ -35,6 +35,14 @@ const CakeSchema=new mongoose.Schema({
         type: String,
         required: true,
     },
+    manufactureDate:{
+        type: Date,
+        required: false,
+    },
+    expireDate:{
+        type: Date,
+        required: false,
+    },
     quantity:{
         type: Number,
         required: true,

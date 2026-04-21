@@ -43,6 +43,10 @@ const orderSchema = new mongoose.Schema({
         required: true,
         enum: ['Crypto', 'Bank Transfer', 'Online Transfer']
     },
+    deliveryDate: {
+        type: Date,
+        required: true
+    },
     paymentStatus: {
         type: String,
         default: "Unpaid"

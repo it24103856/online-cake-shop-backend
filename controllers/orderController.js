@@ -5,6 +5,19 @@ import User from "../models/User.js";
 
 const MANAGED_ORDER_STATUSES = ["pending", "processing", "shipped"];
 
+const normalizeDeliveryDate = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+};
+
 const updateLoyaltyStatus = async (userId) => {
     try {
         const orders = await Order.find({ userId, status: 'delivered' });
@@ -27,9 +40,27 @@ const updateLoyaltyStatus = async (userId) => {
 export const createOrder = async (req, res) => {
     try {
         const items = Array.isArray(req.body.items) ? req.body.items : [];
+        const deliveryDate = normalizeDeliveryDate(req.body.deliveryDate);
 
         if (items.length === 0) {
             throw new Error("Cart is empty.");
+        }
+
+        if (!deliveryDate) {
+            return res.status(400).json({
+                success: false,
+                message: "Delivery date is required."
+            });
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (deliveryDate < today) {
+            return res.status(400).json({
+                success: false,
+                message: "Delivery date cannot be in the past."
+            });
         }
 
         for (const item of items) {
@@ -56,6 +87,7 @@ export const createOrder = async (req, res) => {
 
         const newOrder = new Order({
             ...req.body,
+            deliveryDate,
             userId: req.user.id
         });
 
