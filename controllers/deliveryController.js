@@ -1,6 +1,7 @@
 import Delivery from "../models/Delivery.js";
 import Order from "../models/Order.js";
 import mongoose from "mongoose"; // මෙය අනිවාර්යයෙන්ම අවශ්‍යයි
+import { updateLoyaltyStatus } from "./orderController.js";
 // 1. Assign Delivery
 export const assignDelivery = async (req, res) => {
     try {
@@ -115,7 +116,15 @@ export const updateDeliveryStatus = async (req, res) => {
 
         if (status === 'Delivered') {
             updateData.actualDeliveryTime = new Date();
-            await Order.findByIdAndUpdate(delivery.orderID, { status: 'delivered' });
+            const deliveredOrder = await Order.findByIdAndUpdate(
+                delivery.orderID,
+                { status: 'delivered' },
+                { new: true }
+            );
+
+            if (deliveredOrder?.userId) {
+                await updateLoyaltyStatus(deliveredOrder.userId);
+            }
         }
 
         const updated = await Delivery.findByIdAndUpdate(id, { $set: updateData }, { new: true });

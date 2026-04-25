@@ -11,8 +11,25 @@ export const getFullReport = async (req, res) => {
         const [users, cakes, accessories, orders, payments, deliveries] = await Promise.all([
             User.aggregate([
                 { $match: { role: "user" } },
-                { $project: { firstName: 1, lastName: 1, email: 1, createdAt: 1 } },
-                { $sort: { createdAt: -1 } }
+                {
+                    $addFields: {
+                        effectiveRegistrationDate: {
+                            $ifNull: [
+                                "$registrationDate",
+                                { $ifNull: ["$createdAt", { $toDate: "$_id" }] }
+                            ]
+                        }
+                    }
+                },
+                {
+                    $project: {
+                        firstName: 1,
+                        lastName: 1,
+                        email: 1,
+                        effectiveRegistrationDate: 1
+                    }
+                },
+                { $sort: { effectiveRegistrationDate: -1 } }
             ]),
             Cake.aggregate([
                 { $project: { name: 1, category: 1, price: 1, quantity: 1 } },
@@ -87,7 +104,7 @@ export const getFullReport = async (req, res) => {
             users: users.map(u => ({
                 name: `${u.firstName} ${u.lastName}`,
                 email: u.email,
-                registrationDate: new Date(u.createdAt).toLocaleDateString("en-US")
+                registrationDate: new Date(u.effectiveRegistrationDate).toLocaleDateString("en-US")
             })),
             products: [
                 ...cakes.map(c => ({

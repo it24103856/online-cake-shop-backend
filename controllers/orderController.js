@@ -3,7 +3,7 @@ import Cake from "../models/Cake.js";
 import Accessories from "../models/Accessories.js";
 import User from "../models/User.js";
 
-const MANAGED_ORDER_STATUSES = ["pending", "processing", "shipped"];
+const MANAGED_ORDER_STATUSES = ["pending", "processing", "shipped", "delivered"];
 
 const normalizeDeliveryDate = (value) => {
     if (!value) {
@@ -18,7 +18,7 @@ const normalizeDeliveryDate = (value) => {
     return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 };
 
-const updateLoyaltyStatus = async (userId) => {
+export const updateLoyaltyStatus = async (userId) => {
     try {
         const orders = await Order.find({ userId, status: 'delivered' });
         const totalOrders = orders.length;
@@ -147,7 +147,7 @@ export const updateOrderStatus = async (req, res) => {
         if (!status || !MANAGED_ORDER_STATUSES.includes(status)) {
             return res.status(400).json({
                 success: false,
-                message: "Order status must be pending, processing, or shipped."
+                message: "Order status must be pending, processing, shipped, or delivered."
             });
         }
 

@@ -64,8 +64,13 @@ const userSchema = new mongoose.Schema(
             isLoyal: {
                 type: Boolean,
                 default: false
+            },
+            registrationDate: {
+                type: Date,
+                default: Date.now
             }
-        }
+        },
+        { timestamps: true }
     );
     
     export default mongoose.model("User", userSchema);
